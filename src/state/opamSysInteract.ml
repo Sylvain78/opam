@@ -130,6 +130,7 @@ type families =
   | Dummy of test_setup
   | Freebsd
   | Gentoo
+  | Haiku
   | Homebrew
   | Macports
   | Msys2
@@ -197,6 +198,7 @@ let family ~env () =
     | "debian" | "ubuntu" -> Debian
     | "gentoo" -> Gentoo
     | "homebrew" -> Homebrew
+    | "haiku" -> Haiku
     | "macports" -> Macports
     | "macos" ->
       failwith
@@ -776,6 +778,13 @@ let packages_status ?(env=OpamVariable.Map.empty) config packages =
       |> package_set_of_pkgpath
     in
     compute_sets sys_installed
+  | Haiku ->
+    let sys_installed =
+      run_query_command "pkg" ["list"; "%n\n%o"]
+      |> List.map OpamSysPkg.of_string
+      |> OpamSysPkg.Set.of_list
+    in
+    compute_sets sys_installed
   | Homebrew ->
     (* accept 'pkgname' and 'pkgname@version'
        exampe output
@@ -992,6 +1001,7 @@ let install_packages_commands_t ?(env=OpamVariable.Map.empty) config sys_package
       [`AsUser "false", []], None
   | Freebsd -> [`AsAdmin "pkg", "install"::yes ["-y"] packages], None
   | Gentoo -> [`AsAdmin "emerge", yes ~no:["-a"] [] packages], None
+  | Haiku -> [`AsAdmin "pkgman", "install"::yes ["-y"] packages], None
   | Homebrew ->
     [`AsUser "brew", "install"::packages], (* NOTE: Does not have any interactive mode *)
     Some (["HOMEBREW_NO_AUTO_UPDATE","yes"])
@@ -1065,6 +1075,7 @@ let update ?(env=OpamVariable.Map.empty) config =
       if test.install then None else Some (`AsUser "false", [])
     | Freebsd -> None
     | Gentoo -> Some (`AsAdmin "emerge", ["--sync"])
+    | Haiku -> Some (`AsAdmin "pkgman", ["update"])
     | Homebrew -> Some (`AsUser "brew", ["update"])
     | Macports -> Some (`AsAdmin "port", ["sync"])
     | Msys2 -> Some (`AsUser (Commands.msys2 config), ["-Sy"])
